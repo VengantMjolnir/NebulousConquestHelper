@@ -48,6 +48,11 @@ namespace NebulousConquestHelper
                 fleet.Location.PresentFleets.Add(fleet);
             }
 
+            foreach(var team in game.Teams)
+            {
+                team.PostLoadInit();
+            }
+
             return true;
         }
 

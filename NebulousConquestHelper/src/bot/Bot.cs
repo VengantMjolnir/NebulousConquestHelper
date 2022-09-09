@@ -3,9 +3,13 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Exceptions;
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Enums;
+using DSharpPlus.Interactivity.Extensions;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,15 +23,29 @@ namespace NebulousConquestHelper
 
         public DiscordClient Client { get; set; }
         public CommandsNextExtension Commands { get; set; }
+
+		public Dictionary<string, Func<DiscordInteraction, Task>> BotCallbacks;
+		public Dictionary<string, CreateOrderSession> ActiveUserInteractions;
 		
 		public GameInfo Game { get; set; }	
 
 		public Bot(GameInfo game)
         {
 			Game = game;
+
+			BotCallbacks = new Dictionary<string, Func<DiscordInteraction, Task>>()
+			{
+				{"map", HandleMapRequest },
+				{"fleets", HandleFleetRequest },
+				{"order", HandleCreateOrderRequest },
+				{"assign", HandleTeamAssignmentRequest }
+			};
+
+			ActiveUserInteractions = new Dictionary<string, CreateOrderSession>();
         }
 
-		public async Task RunBotAsync()
+
+        public async Task RunBotAsync()
 		{
 			String configFileName = "src/data/config.json";
 			String json = "";
@@ -84,6 +102,12 @@ namespace NebulousConquestHelper
 
 			Commands.SetHelpFormatter<BotHelpFormatter>();
 
+			Client.UseInteractivity(new InteractivityConfiguration()
+			{
+				PollBehaviour = PollBehaviour.KeepEmojis,
+				Timeout = TimeSpan.FromSeconds(30)
+			});
+
 			await Client.ConnectAsync();
 
 			await Task.Delay(-1);
@@ -105,25 +129,20 @@ namespace NebulousConquestHelper
 
             try
             {
-				if (e.Interaction.Data.Name == "map")
+				if ( BotCallbacks.ContainsKey(e.Interaction.Data.Name))
 				{
-					Mapping.CreateSystemMap(Game.System);
-					using (FileStream fs = new FileStream(Helper.DATA_FOLDER_PATH + "SystemMap.png", FileMode.Open, FileAccess.Read))
-					{
-						await e.Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
-							.WithContent("Here is the map for the current game state:")
-							.AddFile("SystemMap.png", fs));
-					}
+					var callback = BotCallbacks[e.Interaction.Data.Name];
+					await callback(e.Interaction);
 				}
 			}
             catch (Exception ex)
             {
-				await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, 
-					new DiscordInteractionResponseBuilder()
+				await e.Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
 					.WithContent("Failed to retrieve map"));
             }
         }
 
+        #region Discord Client Handlers
         private async Task Commands_CommandErrored(CommandsNextExtension sender, CommandErrorEventArgs e)
 		{
 			// Log details
@@ -171,5 +190,83 @@ namespace NebulousConquestHelper
 
 			return Task.CompletedTask;
 		}
+        #endregion
+
+
+        #region Bot Callbacks
+        private async Task HandleMapRequest(DiscordInteraction Interaction)
+		{
+			Mapping.CreateSystemMap(Game.System);
+			using (FileStream fs = new FileStream(Helper.DATA_FOLDER_PATH + "SystemMap.png", FileMode.Open, FileAccess.Read))
+			{
+				await Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
+					.WithContent("Here is the map for the current game state:")
+					.AddFile("SystemMap.png", fs));
+			}
+		}
+
+		private async Task HandleFleetRequest(DiscordInteraction Interaction)
+		{
+			StringBuilder builder = new StringBuilder();
+
+			builder.AppendLine("Fleet Info:");
+			foreach (FleetInfo fleet in Game.Fleets)
+            {
+                builder.Append("  ").AppendLine($"{fleet.Fleet.Name} at {fleet.LocationName}");
+			}
+            await Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
+				.WithContent(builder.ToString()));
+		}
+
+		private async Task HandleCreateOrderRequest(DiscordInteraction Interaction)
+		{
+			StringBuilder builder = new StringBuilder();
+
+			builder.AppendLine("Order Info:");
+			foreach (FleetInfo fleet in Game.Fleets)
+			{
+				builder.Append("  ").AppendLine($"{fleet.Fleet.Name} at {fleet.LocationName}");
+			}
+			await Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
+				.WithContent(builder.ToString()));
+		}
+
+		private async Task HandleTeamAssignmentRequest(DiscordInteraction Interaction)
+		{
+			StringBuilder builder = new StringBuilder();
+			DiscordUser user = null;
+			TeamInfo team = null;
+			foreach (var option in Interaction.Data.Options)
+            {
+				if (option.Name == "user")
+                {
+					ulong userid = Convert.ToUInt64(option.Value);
+					user = await Client.GetUserAsync(userid);
+					Client.Logger.LogInformation(BotEventId, "user option is: " + option.Value.ToString());
+                }
+				if (option.Name == "team")
+                {
+					var team_enum = Enum.Parse<GameInfo.ConquestTeam>(option.Value as string);
+					team = Game.GetTeam(team_enum);
+                }
+			}
+
+			if (team != null && user != null)
+			{
+				team.RegisterPlayer(user.Username, user.Id, "Admiral");
+				builder.AppendLine($"User {user.Username} has been assigned to the {team.ShortName}");
+				Game.SaveGame();
+			}
+
+			await Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
+				.WithContent(builder.ToString()));
+		}
+		#endregion
 	}
+
+	public class CreateOrderSession
+    {
+		public string SelectedFleet { get; set; }
+		public string UserName { get; set; }
+    }
 }

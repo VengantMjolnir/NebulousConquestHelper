@@ -4,6 +4,69 @@
             "name": "map",
             "description": "Show the system map",
             "type": 1
+        },
+        {
+            "name": "fleets",
+            "description": "List all fleets",
+            "type": 1
+        },
+        {
+            "name": "assign",
+            "description": "Assign a user to a team",
+            "type": 1,
+            "options": [
+                {
+                    "name": "user",
+                    "description": "The user to assign",
+                    "type": 6,
+                    "required": true
+                },
+                {
+                    "name": "team",
+                    "description": "The team to assign",
+                    "type": 3,
+                    "required": true,
+                    "choices": [
+                        {
+                            "name": "Green",
+                            "value": "GreenTeam"
+                        },
+                        {
+                            "name": "Orange",
+                            "value": "OrangeTeam"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "order",
+            "description": "Create an order for a fleet",
+            "type": 1,
+            "options": [
+                {
+                    "name": "list",
+                    "description": "List all created orders on your team",
+                    "type": 1
+                },
+                {
+                    "name": "create",
+                    "description": "Create a new order for a combat unit",
+                    "type": 2,
+                    "options": [
+                        {
+                            "name": "move",
+                            "description": "Create a move command for a combat unit",
+                            "type": 1
+                        },
+                        {
+                            "name": "build",
+                            "description": "Create a move command for a combat unit",
+                            "type": 1
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }
