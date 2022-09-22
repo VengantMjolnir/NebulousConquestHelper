@@ -124,13 +124,14 @@ namespace NebulousConquestHelper
             catch (Exception ex)
             {
 				Client.Logger.LogError(BotEventId, "Exception when responding to interaction");
-                throw;
+                throw ex;
             }
 
             try
             {
 				if ( BotCallbacks.ContainsKey(e.Interaction.Data.Name))
 				{
+					Mapping.CreateSystemMap(Game.System, Game.DaysPassed);
 					var callback = BotCallbacks[e.Interaction.Data.Name];
 					await callback(e.Interaction);
 				}
@@ -139,6 +140,7 @@ namespace NebulousConquestHelper
             {
 				await e.Interaction.CreateFollowupMessageAsync(new DiscordFollowupMessageBuilder()
 					.WithContent("Failed to retrieve map"));
+				throw ex;
             }
         }
 
