@@ -57,11 +57,19 @@
                         {
                             "name": "move",
                             "description": "Create a move command for a combat unit",
-                            "type": 1
+                            "type": 1,
+                            "options": [
+                                {
+                                    "name": "fleet",
+                                    "description": "The fleet to order",
+                                    "type": 3,
+                                    "autocomplete": true
+                                }
+                            ]
                         },
                         {
                             "name": "build",
-                            "description": "Create a move command for a combat unit",
+                            "description": "Create a build command for a space station",
                             "type": 1
                         }
                     ]

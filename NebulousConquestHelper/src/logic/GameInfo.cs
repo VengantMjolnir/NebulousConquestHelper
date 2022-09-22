@@ -16,6 +16,7 @@ namespace NebulousConquestHelper
         }
 
         public string ScenarioName;
+        public int CurrentTurn;
         public List<TeamInfo> Teams;
         public List<FleetInfo> Fleets;
         public SystemInfo System;
